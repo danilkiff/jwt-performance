@@ -53,10 +53,13 @@ Tokens remain cached in `output/` for repeated runs.
 
 ## Manual execution (optional)
 
-Generate keys as described in [`secrets/README.md`](secrets/README.md), then:
+1. Generate keys as described in [`secrets/README.md`](secrets/README.md).
+2. Generate JWT/JWE as described in [`tools/README.md`](tools/README.md).
+3. Run docker-compose and start k6 tests:
 
 ```bash
 docker compose up -d --build
+
 ./k6 run k6/load-hs256.js
 ./k6 run k6/load-rs256.js
 ./k6 run k6/load-es256.js
@@ -73,6 +76,12 @@ docker compose up -d --build
 
 The bench isolates **pure verification/decryption cost**.
 There is deliberately no DB, cache, OAuth, or user-profile lookups.
+
+## TL;DR
+
+See [analysis.ipynb](results/analysis.ipynb):
+
+![results](results/tldr.png)
 
 ## License
 
