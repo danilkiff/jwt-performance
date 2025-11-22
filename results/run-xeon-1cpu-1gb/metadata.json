@@ -1,0 +1,8 @@
+{
+  "title":  "Xeon Limited by resources",
+  "cpu":    "2 x Intel(R) Xeon(R) CPU E5-2660 v2 @ 2.20GHz",
+  "ram":    "4 x 32 Gb DDR3 @ 800MHz (1.2ns)",
+  "ssd":    "2Tb",
+  "limits": "1 CPU, 1 Gb RAM"
+}
+
