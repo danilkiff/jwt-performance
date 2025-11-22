@@ -5,8 +5,7 @@ export const options = {
     duration: "60s",
 };
 
-// TODO: pre-generated tokens
-const tokens = open("../secrets/jwe-tokens.txt").trim().split("\n");
+const tokens = open("../output/jwe-tokens.txt").trim().split("\n");
 const n = tokens.length;
 
 function randomJwe() {

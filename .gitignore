@@ -8,3 +8,9 @@ gradlew.bat
 
 # Build artifacts
 build
+
+# Generated JWT/JWKs
+output
+
+# Python
+.venv
