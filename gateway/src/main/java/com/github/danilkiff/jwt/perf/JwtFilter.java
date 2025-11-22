@@ -10,7 +10,6 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.SignedJWT;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -21,7 +20,7 @@ import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;
 
 @Component
-public class JwtFilter implements GlobalFilter {
+public class JwtFilter {
 
     private final byte[] hs256Secret;
     private final RSAKey rsaPublicKey;
@@ -48,7 +47,6 @@ public class JwtFilter implements GlobalFilter {
         }
     }
 
-    @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 
         var auth = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);

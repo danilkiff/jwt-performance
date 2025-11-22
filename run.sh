@@ -209,7 +209,14 @@ mkdir -p "${RESULTS_DIR}"
 
 cd "${REPO_ROOT}/k6"
 
-for script in load-hs256.js load-rs256.js load-es256.js load-jwe.js; do
+# warmup (to avoid JVM cold start issues)
+if [[ -f warmup.js ]]; then
+  "${K6_BIN}" run warmup.js
+else
+  log "Skipping warmup (not found)"
+fi
+
+for script in load-plain.js load-hs256.js load-rs256.js load-es256.js load-jwe.js; do
   if [[ -f "${script}" ]]; then
     log "k6 run ${script}..."
 

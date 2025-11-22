@@ -71,17 +71,12 @@ docker compose up -d --build
 * relative RPS drop across HS256 → RS256 → ES256 → JWE
 * per-algorithm latency characteristics
 * Netty/SCG event-loop pressure points
-* cost impact of token size (thin/fat JWT, encrypted blobs)
 * effect of pure crypto vs routing with zero application logic
 
 The bench isolates **pure verification/decryption cost**.
 There is deliberately no DB, cache, OAuth, or user-profile lookups.
 
-## TL;DR
-
-See [analysis.ipynb](results/analysis.ipynb):
-
-![results](results/tldr.png)
+See [analysis.ipynb](results/analysis.ipynb) for the details.
 
 ## License
 
