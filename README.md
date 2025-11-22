@@ -1,56 +1,80 @@
-# JWT/JWE Gateway Performance Bench
+# JWT/JWE Spring Cloud Gateway Performance Bench
 
-## Purpose
+A reproducible benchmark suite for measuring **signature-verification** and **JWE-decryption** cost inside **Spring Cloud Gateway 2025.x** (Java 21, Nimbus JOSE).  
+Each request carries a **unique token** to avoid hot-path inlining and show real event-loop crypto overhead.
 
-Benchmark the verification cost of HS256, RS256, ES256, and JWE inside Spring Cloud Gateway (Java 21).
-Each request carries a **unique token** to eliminate JVM hot-path effects and expose real crypto overhead.
-
-## Structure
+## Repository layout
 
 ```text
-gateway/      Spring Cloud Gateway + unified verifier (Nimbus JOSE)
-backend/      Minimal REST target (/api/ping)
-k6/           Load scripts for each algorithm
-secrets/      HS256, RS256, ES256 key material; RSA keypair for JWE (RSA-OAEP + AES-GCM)
+gateway/        Spring Cloud Gateway + unified HS256/RS256/ES256/JWE verifier
+backend/        Minimal REST service (/api/ping + /actuator/health)
+k6/             Load scripts for HS256, RS256, ES256, JWE (preloaded tokens)
+tools/          Python token generator (JWT/JWE)
+secrets/        Key material (HS256, RSA, EC, JWE RSA-OAEP)
 docker-compose.yml
+run.sh
 ```
 
 ## How it works
 
-Gateway detects token type:
+Gateway classifies tokens on the fly:
 
-* **JWT (HS256/RS256/ES256)** → signature verify
-* **JWE** → RSA decrypt (+ optional nested JWS)
+- **HS256 / RS256 / ES256** → `SignedJWT.parse` → `MACVerifier` / `RSASSAVerifier` / `ECDSAVerifier`
+- **JWE** → `JWEObject.parse` → `RSADecrypter` (RSA-OAEP + AES-GCM)
 
-Backend is intentionally trivial so the only measurable cost is crypto + SCG routing.
+Backend is intentionally trivial. The only measurable components are:
 
-## Running
+- Nimbus parsing & crypto
+- SCG routing
+- Netty event-loop saturation under pressure
 
-Generate keys (HS256/RS256/ES256/JWE) as described [here](secrets/README.md), then:
+Token uniqueness removes JVM inline-caching and signature-reuse artifacts.
+
+## Running the full benchmark
+
+The root script automates everything:
 
 ```bash
-docker-compose up --build
-cd k6
-k6 run load-hs256.js
-k6 run load-rs256.js
-k6 run load-es256.js
-k6 run load-jwe.js
+./run.sh
 ```
 
-k6 scripts generate *per-request* tokens to avoid false results from caching or signature reuse.
+It performs:
 
-## What you measure
+1. prerequisite checks (docker, python)
+2. k6 download (if missing)
+3. Python venv prep (`tools/`)
+4. token generation (HS256/RS256/ES256/JWE → `output/`)
+5. `docker compose up -d` (backend + gateway)
+6. health-wait on `/actuator/health`
+7. sequential execution of all k6 scripts
+8. teardown (`docker compose down` via trap)
 
-* steady-state RPS impact per algorithm
-* SCG event-loop saturation points
-* latency distribution across HS256 → RS256 → ES256 → JWE
-* effect of token size (thin/fat JWT, encrypted blob)
+Tokens remain cached in `output/` for repeated runs.
 
-## Scope boundaries
+## Manual execution (optional)
 
-Not included: database latency, user-directory lookups, cross-DC traffic, advanced routing filters, or cache warming.
-The bench isolates pure token processing.
+Generate keys as described in [`secrets/README.md`](secrets/README.md), then:
+
+```bash
+docker compose up -d --build
+./k6 run k6/load-hs256.js
+./k6 run k6/load-rs256.js
+./k6 run k6/load-es256.js
+./k6 run k6/load-jwe.js
+```
+
+## What the bench reveals
+
+* relative RPS drop across HS256 → RS256 → ES256 → JWE
+* per-algorithm latency characteristics
+* Netty/SCG event-loop pressure points
+* cost impact of token size (thin/fat JWT, encrypted blobs)
+* effect of pure crypto vs routing with zero application logic
+
+The bench isolates **pure verification/decryption cost**.
+There is deliberately no DB, cache, OAuth, or user-profile lookups.
 
 ## License
 
-Licensed under [CC BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/), see [LICENSE.md](LICENSE.md).
+This work is licensed under **CC BY-4.0**.
+See [`LICENSE.md`](LICENSE.md) for attribution requirements.
