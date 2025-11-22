@@ -7,12 +7,11 @@ Each request carries a **unique token** to eliminate JVM hot-path effects and ex
 
 ## Structure
 
-```
+```text
 gateway/      Spring Cloud Gateway + unified verifier (Nimbus JOSE)
 backend/      Minimal REST target (/api/ping)
-crypto/       HS256, RS256, ES256 key material
-jwe/          RSA keypair for JWE (RSA-OAEP + AES-GCM)
 k6/           Load scripts for each algorithm
+secrets/      HS256, RS256, ES256 key material; RSA keypair for JWE (RSA-OAEP + AES-GCM)
 docker-compose.yml
 ```
 
@@ -27,9 +26,9 @@ Backend is intentionally trivial so the only measurable cost is crypto + SCG rou
 
 ## Running
 
-Generate keys (HS256/RS256/ES256/JWE), then:
+Generate keys (HS256/RS256/ES256/JWE) as described [here](secrets/CREATION.md), then:
 
-```
+```bash
 docker-compose up --build
 cd k6
 k6 run load-hs256.js

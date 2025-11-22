@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+spring.cloud.gateway.server.webflux:
+  routes:
+    - id: backend
+      uri: http://localhost:9090
+      predicates:
+        - Path=/api/**
+      filters:
+        - JwtFilter
+
+HS256_SECRET_FILE: classpath:/secrets-dev/hs256-secret.txt
+RS256_PUBLIC_KEY: classpath:/secrets-dev/rs256-public.pem
+ES256_PUBLIC_KEY: classpath:/secrets-dev/es256-public.pem
+JWE_PRIVATE_KEY: classpath:/secrets-dev/rsa-private.pem

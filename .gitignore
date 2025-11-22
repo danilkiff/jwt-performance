@@ -1,0 +1,10 @@
+.idea
+
+# Gradle wrapper mess
+.gradle
+gradle
+gradlew
+gradlew.bat
+
+# Build artifacts
+build
