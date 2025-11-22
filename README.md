@@ -26,7 +26,7 @@ Backend is intentionally trivial so the only measurable cost is crypto + SCG rou
 
 ## Running
 
-Generate keys (HS256/RS256/ES256/JWE) as described [here](secrets/CREATION.md), then:
+Generate keys (HS256/RS256/ES256/JWE) as described [here](secrets/README.md), then:
 
 ```bash
 docker-compose up --build
