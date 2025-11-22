@@ -1,0 +1,31 @@
+name: Gateway Docker Build
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'gateway/**'
+      - '.github/workflows/gateway-docker-build.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'gateway/**'
+      - '.github/workflows/gateway-docker-build.yml'
+
+jobs:
+  build-gateway:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build gateway Docker image
+        working-directory: gateway
+        run: |
+          docker build \
+            --file Dockerfile \
+            --tag jwt-perf-gateway:ci \
+            .
