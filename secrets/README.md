@@ -1,115 +1,106 @@
-# Create secrets and keys
+# Secrets and keys
 
-This directory contains key material used by:
+## TL;DR
+
+| Algorithm | Gateway uses | Python uses | k6 uses          |
+| --------- | ------------ | ----------- | ---------------- |
+| HS256     | secret bytes | secret      | preloaded tokens |
+| RS256     | public key   | private key | preloaded tokens |
+| ES256     | public key   | private key | preloaded tokens |
+| JWE       | private key  | public key  | preloaded tokens |
+
+## Details 
+
+Key material for:
 
 - Spring Cloud Gateway (Nimbus JOSE, PEM → JWK)
-- k6 load tests (HS256 via `k6/crypto`, RS256/ES256 via `k6/experimental/webcrypto`)
+- Python token generator (`tools/generate-all.py`)
+- k6 load tests (preloaded compact tokens from `output/*.txt`)
 
-File names below assume:
+Two separate locations:
 
-- `secrets-dev/` — on classpath for the gateway
-- `secrets/` — used directly by k6 (`../secrets/...` in scripts)
+- `secrets-dev/` — mounted into the gateway (classpath)
+- `secrets/` — used by Python and k6
 
-Adjust paths if you diverge.
+Names below assume this layout.
 
 ## HS256
 
-Used by:
+- Gateway: HMAC secret (raw bytes from file)
+- Python generator: `generate_hs256(secret)`
+- k6: reads pre-generated tokens from `output/hs256-tokens.txt`
 
-- Gateway `JwtFilter` as HMAC secret
-- `load-hs256.js` via `open("../secrets/hs256-secret.txt")`
-
-Generate 256-bit random secret:
+Generate a 256-bit secret:
 
 ```bash
 openssl rand -hex 32 > hs256-secret.txt
 ````
 
-> Note: k6 script trims trailing newline, gateway reads the file as raw bytes.
+Note: the gateway reads raw bytes; Python trims newlines automatically.
 
 ## RS256
 
-Used by:
+- Gateway verifies with **public key**.
+- Python generator signs with **private key** (PKCS#1).
+- k6 uses **pre-generated tokens** (no WebCrypto required anymore).
 
-* Gateway: **public key** (`rs256-public.pem`) via Nimbus `RSAKey.parseFromPEMEncodedObjects(...)`
-* k6: **PKCS#8 private key** (`rs256-private-pkcs8.pem`) via WebCrypto
-
-### Generate RSA keypair (PKCS#1 + X.509)
+### Generate RSA keypair (PKCS#1 private + X.509 public)
 
 ```bash
 openssl genrsa -out rs256-private.pem 2048
 openssl rsa -in rs256-private.pem -pubout -out rs256-public.pem
 ```
 
-* `rs256-public.pem` → gateway (classpath:/secrets-dev/rs256-public.pem)
+Files:
 
-### Convert private key to PKCS#8 for k6 WebCrypto
-
-```bash
-openssl pkcs8 -topk8 -nocrypt \
-  -in rs256-private.pem \
-  -out rs256-private-pkcs8.pem
-```
-
-* `rs256-private-pkcs8.pem` → k6 (`../secrets/rs256-private-pkcs8.pem` in `load-rs256.js`)
+* `rs256-public.pem` → `secrets-dev/` → Gateway (`RS256_PUBLIC_KEY`)
+* `rs256-private.pem` → `secrets/` → Python generator
 
 ## ES256 (P-256)
 
-Used by:
+- Gateway verifies with **public EC key**.
+- Python generator signs with **private key**.
+- k6 uses only pre-generated tokens.
 
-* Gateway: **public EC key** (`es256-public.pem`) via Nimbus `ECKey.parseFromPEMEncodedObjects(...)`
-* k6: **PKCS#8 private key** (`es256-private-pkcs8.pem`) via WebCrypto
-
-### Generate EC keypair (SEC1 + X.509)
+### Generate EC keypair (SEC1 private + X.509 public)
 
 ```bash
 openssl ecparam -name prime256v1 -genkey -noout -out es256-private.pem
 openssl ec -in es256-private.pem -pubout -out es256-public.pem
 ```
 
-* `es256-public.pem` → gateway (classpath:/secrets-dev/es256-public.pem)
+Files:
 
-### Convert EC private key to PKCS#8 for k6 WebCrypto
-
-```bash
-openssl pkcs8 -topk8 -nocrypt \
-  -in es256-private.pem \
-  -out es256-private-pkcs8.pem
-```
-
-* `es256-private-pkcs8.pem` → k6 (`../secrets/es256-private-pkcs8.pem` in `load-es256.js`)
+* `es256-public.pem` → `secrets-dev/` → Gateway (`ES256_PUBLIC_KEY`)
+* `es256-private.pem` → `secrets/` → Python generator
 
 ## RSA for JWE (RSA-OAEP + AES-GCM)
 
-Used by:
-
-- Gateway: **private RSA key** (`rsa-private.pem`) for JWE decryption (`RSADecrypter(jwePrivateKey)` in `JwtFilter`)
-- External JWE generator (Java/Nimbus): **public RSA key** (`rsa-public.pem`) to produce a list of valid compact JWE tokens for load tests
+- Gateway decrypts using **private key**.
+- Python generator encrypts using **public key**.
+- k6 uses pre-generated compact JWE tokens.
 
 ### Generate RSA keypair
 
 ```bash
 openssl genrsa -out rsa-private.pem 2048
 openssl rsa  -in rsa-private.pem -pubout -out rsa-public.pem
-````
+```
 
-### Usage in the system
+Files:
 
-* `rsa-private.pem` placed on the gateway classpath and configured as `JWE_PRIVATE_KEY: classpath:/secrets-dev/rsa-private.pem`
-* `rsa-public.pem` used only by an **external JWE token generator** (Java/Nimbus or another JOSE implementation), which produces a file with **pre-generated compact JWE tokens**
+* `rsa-private.pem`  → `secrets-dev/` → Gateway (`JWE_PRIVATE_KEY`)
+* `rsa-public.pem`   → `secrets/` → Python generator
 
-### Why no JWE generation inside k6
+### Why JWE is not created in k6
 
-k6 does not implement full JOSE/JWE support. A valid compact JWE requires:
+k6 does not support JOSE/JWE. A valid compact JWE requires:
 
-* header (JSON → base64url)
-* CEK generation
-* RSA-OAEP wrapping of CEK
-* AES-GCM encryption (ciphertext + tag)
-* assembly into `header.encryptedKey.iv.ciphertext.tag`
+- JOSE header → base64url
+- CEK generation
+- RSA-OAEP encryption of CEK
+- AES-GCM encryption of payload
+- Assembling `header.encryptedKey.iv.ciphertext.tag`
 
-The load test does not measure JWE creation cost — only the **JWE parsing + RSA decryption** path inside Spring Cloud Gateway.
-
-Therefore, for load tests: JWE tokens are generated **outside k6**, once saved to `jwe-tokens.txt` k6 picks a random token per request.
-
-This keeps the test consistent with the RS256/ES256 setups: gateway validates/decrypts; k6 only drives load.
+The load test measures gateway JWE parsing + RSA decryption, not JWE creation. Therefore, JWE tokens are generated once
+by Python and stored in `output/jwe-tokens.txt`; k6 only reads and replays them.
