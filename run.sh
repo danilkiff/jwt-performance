@@ -15,7 +15,7 @@ K6_VERSION="v1.4.1"
 # - cleans up containers (except k6 binary and venv/token files)
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-K6_BIN="${REPO_ROOT}/k6"
+K6_BIN="${REPO_ROOT}/k6/k6"
 
 # ------------------------------------------------------
 # helpers
