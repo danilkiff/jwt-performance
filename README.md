@@ -3,16 +3,40 @@
 A reproducible benchmark suite for measuring **signature-verification** and **JWE-decryption** cost inside **Spring Cloud Gateway 2025.x** (Java 21, Nimbus JOSE).  
 Each request carries a **unique token** to avoid hot-path inlining and show real event-loop crypto overhead.
 
-## Repository layout
+## Logical flowchart
 
-```text
-gateway/        Spring Cloud Gateway + unified HS256/RS256/ES256/JWE verifier
-backend/        Minimal REST service (/api/ping + /actuator/health)
-k6/             Load scripts for HS256, RS256, ES256, JWE (preloaded tokens)
-tools/          Python token generator (JWT/JWE)
-secrets/        Key material (HS256, RSA, EC, JWE RSA-OAEP)
-docker-compose.yml
-run.sh
+```mermaid
+flowchart
+
+    subgraph SUT["System Under Test"]
+        GW["gateway"]
+        BE["backend"]
+    end
+
+    subgraph Crypto["Crypto"]
+        TG["tools/generate-all.py <br> (Python token generator)"]
+        SECRETS["secrets/         <br> (private keys, secrets)"]
+    end
+
+    OUTPUT["output/*.txt      <br> (pre-generated JWT/JWE)"]
+    K6["k6 load scripts       <br> (load-*.js, warmup.js)"]
+    RESULTS["results/run-*/   <br> (k6 JSON summaries)"]
+    
+    subgraph DS["Data Analysis"]
+        NB["Jupyter notebook"]
+    end
+    
+    SECRETS --> TG 
+    TG --> OUTPUT
+
+    OUTPUT --> K6
+    K6 -->|HTTP load| GW
+
+    GW -->|/api/ping| BE
+    GW -->|/plain/api/ping| BE
+
+    K6 -->|--summary-export| RESULTS
+    RESULTS --> NB
 ```
 
 ## How it works
@@ -80,5 +104,5 @@ See [analysis.ipynb](results/analysis.ipynb) for the details.
 
 ## License
 
-This work is licensed under **CC BY-4.0**.
+This work is licensed under **CC BY-SA-4.0**.
 See [`LICENSE.md`](LICENSE.md) for attribution requirements.
