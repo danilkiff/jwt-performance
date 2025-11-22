@@ -55,7 +55,13 @@ log "Checking prerequisites (docker, python3)..."
 check_cmd docker
 check_cmd python3
 check_cmd curl
-check_cmd tar
+
+OS="$(uname -s)"
+if [[ "$OS" == "Linux" ]]; then
+  check_cmd tar
+elif [[ "$OS" == "Darwin" ]]; then
+  check_cmd unzip
+fi
 
 # ------------------------------------------------------
 # 2. Download k6 (if missing)
@@ -67,19 +73,22 @@ download_k6() {
     return
   fi
 
-  local os arch url tgz tmpdir
+  local os arch archive_type url
   os="$(uname -s)"
   arch="$(uname -m)"
 
   case "${os}/${arch}" in
     Linux/x86_64)
       url="https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz"
+      archive_type="tar"
       ;;
     Darwin/x86_64)
-      url="https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-macos-amd64.tar.gz"
+      url="https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-macos-amd64.zip"
+      archive_type="zip"
       ;;
     Darwin/arm64)
-      url="https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-macos-arm64.tar.gz"
+      url="https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-macos-arm64.zip"
+      archive_type="zip"
       ;;
     *)
       fail "Unsupported OS/ARCH combination for auto k6 download: ${os}/${arch}"
@@ -87,10 +96,26 @@ download_k6() {
   esac
 
   log "Downloading k6 from ${url}..."
+
+  local tmpdir archive_file
+
   tmpdir="$(mktemp -d)"
-  tgz="${tmpdir}/k6.tgz"
-  curl -sSL "${url}" -o "${tgz}"
-  tar -xzf "${tgz}" -C "${tmpdir}"
+  archive_file="${tmpdir}/k6-archive"
+
+  curl -sSL "${url}" -o "${archive_file}"
+
+  case "${archive_type}" in
+    tar)
+      tar -xzf "${archive_file}" -C "${tmpdir}"
+      ;;
+    zip)
+      unzip -q "${archive_file}" -d "${tmpdir}"
+      ;;
+    *)
+      fail "Unknown archive_type: ${archive_type}"
+      ;;
+  esac
+
   # find k6 binary inside extracted directory
   local k6_path
   k6_path="$(find "${tmpdir}" -type f -name k6 -perm -u+x | head -n1)"
@@ -112,7 +137,6 @@ download_k6
 log "Preparing Python venv and generating tokens..."
 
 TOOLS_DIR="${REPO_ROOT}/tools"
-# OUTPUT_DIR="${REPO_ROOT}/output"
 VENV_DIR="${TOOLS_DIR}/.venv"
 
 if [[ ! -d "${VENV_DIR}" ]]; then
@@ -127,7 +151,7 @@ pip install --upgrade pip >/dev/null
 pip install -r "${TOOLS_DIR}/requirements.txt" >/dev/null
 
 log "Running token generator (generate-all.py)..."
-python "${TOOLS_DIR}/generate-all.py" -n 10000
+python "${TOOLS_DIR}/generate-all.py" -n 100
 
 deactivate || true
 

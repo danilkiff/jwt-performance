@@ -14,3 +14,6 @@ output
 
 # Python
 .venv
+
+# K6 binary
+k6/k6
