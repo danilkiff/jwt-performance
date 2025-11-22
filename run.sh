@@ -175,17 +175,25 @@ wait_for_health "backend" 9090 120
 wait_for_health "gateway" 8080 120
 
 # ------------------------------------------------------
-# -------- 6. Run all k6 tests --------
+# 6. Run all k6 tests
 # ------------------------------------------------------
 
 log "Running k6 load tests..."
+
+RESULTS_DIR="${REPO_ROOT}/results"
+mkdir -p "${RESULTS_DIR}"
 
 cd "${REPO_ROOT}/k6"
 
 for script in load-hs256.js load-rs256.js load-es256.js load-jwe.js; do
   if [[ -f "${script}" ]]; then
     log "k6 run ${script}..."
-    "${K6_BIN}" run "${script}"
+
+    alg="${script#load-}"
+    alg="${alg%.js}"
+    out="${RESULTS_DIR}/${alg}.json"
+
+    "${K6_BIN}" run "${script}" --summary-export "${out}"
   else
     log "Skipping ${script} (not found)"
   fi
@@ -194,7 +202,7 @@ done
 log "All k6 tests finished."
 
 # ------------------------------------------------------
-# -------- 7. Cleanup (handled by trap) --------
+# 7. Cleanup (handled by trap)
 # ------------------------------------------------------
 
 log "Benchmark run complete. Containers will be stopped by trap."
