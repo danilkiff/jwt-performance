@@ -4,6 +4,8 @@ services:
   backend:
     build: ./backend
     container_name: backend
+    mem_limit: 1g
+    cpus: 1
     ports:
       - "0.0.0.0:9090:9090"
     healthcheck:
@@ -15,6 +17,8 @@ services:
   gateway:
     build: ./gateway
     container_name: gateway
+    mem_limit: 1g
+    cpus: 1
     ports:
       - "0.0.0.0:8080:8080"
     depends_on:
