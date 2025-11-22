@@ -48,61 +48,44 @@ Gateway classifies tokens on the fly:
 
 Backend is intentionally trivial. The only measurable components are:
 
-- Nimbus parsing & crypto
-- SCG routing
-- Netty event-loop saturation under pressure
+- Nimbus parsing & crypto;
+- SCG routing;
+- Netty event-loop saturation under pressure.
 
 Token uniqueness removes JVM inline-caching and signature-reuse artifacts.
 
 ## Running the full benchmark
 
-The root script automates everything:
+The `run.sh` script automates the end-to-end workflow: handles environment validation, dependency setup, 
+token generation, container startup, readiness checks, and sequential execution of all k6 workloads.
 
-```bash
-./run.sh
-```
-
-It performs:
-
-1. prerequisite checks (docker, python)
-2. k6 download (if missing)
-3. Python venv prep (`tools/`)
-4. token generation (HS256/RS256/ES256/JWE → `output/`)
-5. `docker compose up -d` (backend + gateway)
-6. health-wait on `/actuator/health`
-7. sequential execution of all k6 scripts
-8. teardown (`docker compose down` via trap)
-
-Tokens remain cached in `output/` for repeated runs.
+See the script source for the exact sequence of operations.
 
 ## Manual execution (optional)
 
-1. Generate keys as described in [`secrets/README.md`](secrets/README.md).
-2. Generate JWT/JWE as described in [`tools/README.md`](tools/README.md).
-3. Run docker-compose and start k6 tests:
+- generate keys as described in [`secrets/README.md`](secrets/README.md);
+- generate JWT/JWE as described in [`tools/README.md`](tools/README.md);
+- run docker-compose and start k6 tests:
 
 ```bash
 docker compose up -d --build
 
-./k6 run k6/load-hs256.js
-./k6 run k6/load-rs256.js
-./k6 run k6/load-es256.js
-./k6 run k6/load-jwe.js
+k6 run k6/warmup.js
+k6 run k6/load-hs256.js
+k6 run k6/load-rs256.js
+k6 run k6/load-es256.js
+k6 run k6/load-jwe.js
 ```
 
 ## What the bench reveals
 
-* relative RPS drop across HS256 → RS256 → ES256 → JWE
-* per-algorithm latency characteristics
-* Netty/SCG event-loop pressure points
-* effect of pure crypto vs routing with zero application logic
+- throughput changes across HS256 → RS256 → ES256 → JWE;
+- latency behavior per algorithm;
+- pressure on the Netty/SCG event loop;
+- impact of raw cryptography with routing, without any application logic.
 
-The bench isolates **pure verification/decryption cost**.
-There is deliberately no DB, cache, OAuth, or user-profile lookups.
-
-See [analysis.ipynb](results/analysis.ipynb) for the details.
+See [analysis.ipynb](results/analysis.ipynb) for the full analysis.
 
 ## License
 
-This work is licensed under **CC BY-SA-4.0**.
-See [`LICENSE.md`](LICENSE.md) for attribution requirements.
+This work is licensed under **CC BY-SA-4.0**. See [`LICENSE.md`](LICENSE.md) for attribution requirements.
