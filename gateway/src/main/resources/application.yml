@@ -4,7 +4,7 @@ server:
 spring.cloud.gateway.server.webflux:
   routes:
     - id: backend
-      uri: http://localhost:9090
+      uri: http://${BACKEND_HOST:localhost}:9090
       predicates:
         - Path=/api/**
       filters:

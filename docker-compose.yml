@@ -3,7 +3,7 @@ services:
 
   backend:
     build: ./backend
-    container_name: api-backend
+    container_name: backend
     ports:
       - "0.0.0.0:9090:9090"
     healthcheck:
@@ -14,7 +14,7 @@ services:
 
   gateway:
     build: ./gateway
-    container_name: api-gateway
+    container_name: gateway
     ports:
       - "0.0.0.0:8080:8080"
     depends_on:
@@ -30,5 +30,6 @@ services:
       RS256_PUBLIC_KEY: file:/secrets/rs256-public.pem
       ES256_PUBLIC_KEY: file:/secrets/es256-public.pem
       JWE_PRIVATE_KEY: file:/secrets/rsa-private.pem
+      BACKEND_HOST: backend
     volumes:
       - ./secrets:/secrets
