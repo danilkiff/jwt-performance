@@ -3,15 +3,28 @@ services:
 
   backend:
     build: ./backend
+    container_name: api-backend
     ports:
-      - "9090:9090"
+      - "0.0.0.0:9090:9090"
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:9090/actuator/health" ]
+      interval: 10s
+      timeout: 2s
+      retries: 10
 
   gateway:
     build: ./gateway
+    container_name: api-gateway
     ports:
-      - "8080:8080"
+      - "0.0.0.0:8080:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8080/actuator/health" ]
+      interval: 10s
+      timeout: 2s
+      retries: 10
     environment:
       HS256_SECRET_FILE: file:/secrets/hs256-secret.txt
       RS256_PUBLIC_KEY: file:/secrets/rs256-public.pem

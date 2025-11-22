@@ -43,3 +43,7 @@ dependencyManagement {
 test {
     useJUnitPlatform()
 }
+
+bootJar {
+    archiveFileName = 'gateway.jar'
+}
