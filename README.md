@@ -19,7 +19,7 @@ flowchart
     end
 
     subgraph Crypto["Crypto"]
-        TOOLS["tools/generate-all.py <br> (Python token generator)"]
+        TOOLS["**jwt-tools/** <br> generate JWT/JWE"]
         SECRETS@{ shape: docs, label: "**secrets/** <br>(private keys, secrets)"}
         
         OUTPUT@{ shape: docs, label: "**output/** <br>(pre-generated JWT/JWE)"}
@@ -71,22 +71,6 @@ The `run.sh` script automates the end-to-end workflow: handles environment valid
 token generation, container startup, readiness checks, and sequential execution of all k6 workloads.
 
 See the script source for the exact sequence of operations.
-
-## Manual execution (optional)
-
-- generate keys as described in [`secrets/README.md`](secrets/README.md);
-- generate JWT/JWE as described in [`tools/README.md`](tools/README.md);
-- run docker-compose and start k6 tests:
-
-```bash
-docker compose up -d --build
-
-k6 run k6/warmup.js
-k6 run k6/load-hs256.js
-k6 run k6/load-rs256.js
-k6 run k6/load-es256.js
-k6 run k6/load-jwe.js
-```
 
 ## What the bench reveals
 

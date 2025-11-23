@@ -3,19 +3,24 @@
 set -euo pipefail
 
 K6_VERSION="v1.4.1"
+JWT_VERSION="v0.0.2-alpha"
+JWT_REPO="danilkiff/jwt-token-generator"
+
+TOKENS_COUNT=10000
 
 # ------------------------------------------------------
 # Simple orchestration script:
 # ------------------------------------------------------
-# - checks docker + python3
+# - checks docker, curl, tar, python3 (only for k6 warmup deps, if any)
 # - downloads k6 binary (if missing)
-# - prepares tools venv and generates tokens
+# - downloads jwt-tools (Go CLIs for JWT/JWE) and generates tokens
 # - starts backend + gateway via docker compose
 # - runs all k6 load tests
-# - cleans up containers (except k6 binary and venv/token files)
+# - cleans up containers (except k6 binary, jwt-tools and token files)
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 K6_BIN="${REPO_ROOT}/k6/k6"
+JWT_BIN_DIR="${REPO_ROOT}/jwt-tools"
 
 # ------------------------------------------------------
 # helpers
@@ -51,17 +56,14 @@ trap cleanup EXIT
 # 1. Preconditions
 # ------------------------------------------------------
 
-log "Checking prerequisites (docker, python3)..."
+log "Checking prerequisites (docker, python3, curl, tar)..."
 check_cmd docker
 check_cmd python3
 check_cmd curl
+check_cmd tar
 
 OS="$(uname -s)"
-if [[ "$OS" == "Linux" ]]; then
-  check_cmd tar
-elif [[ "$OS" == "Darwin" ]]; then
-  check_cmd unzip
-fi
+ARCH="$(uname -m)"
 
 # ------------------------------------------------------
 # 2. Download k6 (if missing)
@@ -74,8 +76,8 @@ download_k6() {
   fi
 
   local os arch archive_type url
-  os="$(uname -s)"
-  arch="$(uname -m)"
+  os="$OS"
+  arch="$ARCH"
 
   case "${os}/${arch}" in
     Linux/x86_64)
@@ -121,6 +123,7 @@ download_k6() {
   k6_path="$(find "${tmpdir}" -type f -name k6 -perm -u+x | head -n1)"
   [[ -n "${k6_path}" ]] || fail "k6 binary not found in archive"
 
+  mkdir -p "$(dirname "${K6_BIN}")"
   mv "${k6_path}" "${K6_BIN}"
   chmod +x "${K6_BIN}"
   rm -rf "${tmpdir}"
@@ -131,29 +134,117 @@ download_k6() {
 download_k6
 
 # ------------------------------------------------------
-# 3. Generate tokens via tools/venv
+# 3. Download jwt-tools and generate tokens
 # ------------------------------------------------------
 
-log "Preparing Python venv and generating tokens..."
+download_jwt_tools() {
+  if [[ -x "${JWT_BIN_DIR}/jwt-claims" ]]; then
+    log "jwt-tools already present in ${JWT_BIN_DIR}"
+    return
+  fi
 
-TOOLS_DIR="${REPO_ROOT}/tools"
-VENV_DIR="${REPO_ROOT}/.venv"
+  local os arch archive url
+  os="$OS"
+  arch="$ARCH"
 
-if [[ ! -d "${VENV_DIR}" ]]; then
-  log "Creating venv at ${VENV_DIR}..."
-  python3 -m venv "${VENV_DIR}"
-fi
+  case "${os}/${arch}" in
+    Linux/x86_64)
+      archive="jwt-tools-linux-amd64.tar.gz"
+      ;;
+    Linux/aarch64|Linux/arm64)
+      archive="jwt-tools-linux-arm64.tar.gz"
+      ;;
+    Darwin/x86_64)
+      archive="jwt-tools-darwin-amd64.tar.gz"
+      ;;
+    Darwin/arm64)
+      archive="jwt-tools-darwin-arm64.tar.gz"
+      ;;
+    *)
+      fail "Unsupported OS/ARCH combination for jwt-tools: ${os}/${arch}"
+      ;;
+  esac
 
-source "${VENV_DIR}/bin/activate"
+  url="https://github.com/${JWT_REPO}/releases/download/${JWT_VERSION}/${archive}"
 
-log "Installing Python requirements..."
-pip install --upgrade pip >/dev/null
-pip install -r "${REPO_ROOT}/requirements.txt" >/dev/null
+  log "Downloading jwt-tools from ${url}..."
 
-log "Running token generator (generate-all.py)..."
-python "${TOOLS_DIR}/generate-all.py" -n 100
+  local tmpdir archive_file
+  tmpdir="$(mktemp -d)"
+  archive_file="${tmpdir}/${archive}"
 
-deactivate || true
+  curl -sSL "${url}" -o "${archive_file}"
+  mkdir -p "${JWT_BIN_DIR}"
+  tar -xzf "${archive_file}" -C "${JWT_BIN_DIR}"
+
+  # На macOS снимем quarantine, иначе Gatekeeper будет ругаться
+  if [[ "$OS" == "Darwin" ]]; then
+    log "Clearing quarantine attribute for jwt-tools on macOS..."
+    xattr -d com.apple.quarantine "${JWT_BIN_DIR}/jwt-"* 2>/dev/null || true
+  fi
+
+  chmod +x "${JWT_BIN_DIR}/jwt-"*
+  rm -rf "${tmpdir}"
+
+  log "jwt-tools installed to ${JWT_BIN_DIR}"
+}
+
+download_jwt_tools
+
+generate_tokens_with_jwt_tools() {
+  log "Generating tokens via jwt-tools..."
+
+  local claims_bin hs_bin rs_bin es_bin jwe_bin
+  claims_bin="${JWT_BIN_DIR}/jwt-claims"
+  hs_bin="${JWT_BIN_DIR}/jwt-sign-hs256"
+  rs_bin="${JWT_BIN_DIR}/jwt-sign-rs256"
+  es_bin="${JWT_BIN_DIR}/jwt-sign-es256"
+  jwe_bin="${JWT_BIN_DIR}/jwe-encrypt-rsa-oaep-a256gcm"
+
+  [[ -x "${claims_bin}" ]] || fail "jwt-claims not found or not executable"
+  [[ -x "${hs_bin}" ]]     || fail "jwt-sign-hs256 not found or not executable"
+  [[ -x "${rs_bin}" ]]     || fail "jwt-sign-rs256 not found or not executable"
+  [[ -x "${es_bin}" ]]     || fail "jwt-sign-es256 not found or not executable"
+  [[ -x "${jwe_bin}" ]]    || fail "jwe-encrypt-rsa-oaep-a256gcm not found or not executable"
+
+  local secrets output
+  secrets="${REPO_ROOT}/secrets"
+  output="${REPO_ROOT}/output"
+  mkdir -p "${output}"
+
+  [[ -f "${secrets}/hs256-secret.txt" ]]    || fail "Missing ${secrets}/hs256-secret.txt"
+  [[ -f "${secrets}/rs256-private.pem" ]]   || fail "Missing ${secrets}/rs256-private.pem"
+  [[ -f "${secrets}/es256-private.pem" ]]   || fail "Missing ${secrets}/es256-private.pem"
+  [[ -f "${secrets}/rsa-public.pem" ]]      || fail "Missing ${secrets}/rsa-public.pem"
+
+  # HS256
+  log "Generating HS256 tokens..."
+  "${claims_bin}" -count=${TOKENS_COUNT} | \
+    "${hs_bin}" --key-file "${secrets}/hs256-secret.txt" \
+    > "${output}/hs256-tokens.txt"
+
+  # RS256
+  log "Generating RS256 tokens..."
+  "${claims_bin}" -count=${TOKENS_COUNT} | \
+    "${rs_bin}" --key-file "${secrets}/rs256-private.pem" \
+    > "${output}/rs256-tokens.txt"
+
+  # ES256
+  log "Generating ES256 tokens..."
+  "${claims_bin}" -count=${TOKENS_COUNT} | \
+    "${es_bin}" --key-file "${secrets}/es256-private.pem" \
+    > "${output}/es256-tokens.txt"
+
+  # JWE
+  log "Generating JWE tokens..."
+  "${claims_bin}" -count=${TOKENS_COUNT} | \
+    "${jwe_bin}" --pub-key-file "${secrets}/rsa-public.pem" \
+    > "${output}/jwe-tokens.txt"
+
+  log "Token generation complete. Files in ${output}"
+}
+
+generate_tokens_with_jwt_tools
 
 # ------------------------------------------------------
 # 4. Start backend + gateway via docker compose
@@ -231,9 +322,5 @@ for script in load-plain.js load-hs256.js load-rs256.js load-es256.js load-jwe.j
 done
 
 log "All k6 tests finished."
-
-# ------------------------------------------------------
-# 7. Cleanup (handled by trap)
-# ------------------------------------------------------
-
 log "Benchmark run complete. Containers will be stopped by trap."
+
