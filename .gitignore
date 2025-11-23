@@ -1,6 +1,6 @@
 .idea
 
-# vscode stuff
+# vscode (java) and go stuff
 bin
 
 # Gradle wrapper mess
@@ -22,3 +22,5 @@ output
 k6/k6
 node_modules
 
+# Go
+coverage.out
