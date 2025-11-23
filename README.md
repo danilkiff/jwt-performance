@@ -3,10 +3,15 @@
 A reproducible benchmark suite for measuring **signature-verification** and **JWE-decryption** cost inside **Spring Cloud Gateway 2025.x** (Java 21, Nimbus JOSE).  
 Each request carries a **unique token** to avoid hot-path inlining and show real event-loop crypto overhead.
 
-## Logical flowchart
-
 ```mermaid
+---
+title: Logical flowchart
+---
+
 flowchart
+
+    START@{ shape: circle, label: "Start" }
+    STOP@{ shape: dbl-circ, label: "Stop" }
 
     subgraph SUT["System Under Test"]
         GW["gateway"]
@@ -14,20 +19,24 @@ flowchart
     end
 
     subgraph Crypto["Crypto"]
-        TG["tools/generate-all.py <br> (Python token generator)"]
-        SECRETS["secrets/         <br> (private keys, secrets)"]
+        TOOLS["tools/generate-all.py <br> (Python token generator)"]
+        SECRETS@{ shape: docs, label: "**secrets/** <br>(private keys, secrets)"}
+        
+        OUTPUT@{ shape: docs, label: "**output/** <br>(pre-generated JWT/JWE)"}
     end
 
-    OUTPUT["output/*.txt      <br> (pre-generated JWT/JWE)"]
-    K6["k6 load scripts       <br> (load-*.js, warmup.js)"]
-    RESULTS["results/run-*/   <br> (k6 JSON summaries)"]
+    K6@{ shape: subproc, label: "**k6/** <br> load scripts <br> (load-*.js, warmup.js)" }
     
     subgraph DS["Data Analysis"]
-        NB["Jupyter notebook"]
+        RESULTS@{ shape: docs, label: "**results/*.json** <br>(k6 JSON summaries)"}
+
+        NB@{ shape: subproc, label: "**results/analysis.ipynb** <br> Jupyter notebook" }
     end
+
+    START --> TOOLS
     
-    SECRETS --> TG 
-    TG --> OUTPUT
+    SECRETS --> TOOLS 
+    TOOLS --> OUTPUT
 
     OUTPUT --> K6
     K6 -->|HTTP load| GW
@@ -37,6 +46,8 @@ flowchart
 
     K6 -->|--summary-export| RESULTS
     RESULTS --> NB
+
+    NB --> STOP
 ```
 
 ## How it works
