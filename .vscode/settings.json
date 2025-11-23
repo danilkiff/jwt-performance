@@ -1,0 +1,43 @@
+{
+  "javascript.suggest.autoImports": true,
+  "javascript.preferences.importModuleSpecifier": "non-relative",
+  "typescript.tsdk": "${workspaceFolder}/k6/node_modules/typescript/lib",
+
+  // ---------- Python / venv ----------
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.analysis.extraPaths": ["${workspaceFolder}/tools"],
+
+  // ---------- Jupyter ----------
+  "jupyter.notebookFileRoot": "${workspaceFolder}/results",
+  "jupyter.askForKernelRestart": false,
+
+  // ---------- Java ----------
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.exclusions": [
+    "**/output/**",
+    "**/results/**",
+    "**/node_modules/**",
+    "**/build/**",
+    "**/target/**"
+  ],
+
+  // ---------- General ----------
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.venv": false,
+    "**/.idea": true
+  },
+  "search.exclude": {
+    "**/output": true,
+    "**/results": true
+  },
+  "terminal.integrated.env.linux": {
+    "K6_NO_UPDATE_CHECK": "1"
+  },
+  "terminal.integrated.env.osx": {
+    "K6_NO_UPDATE_CHECK": "1"
+  },
+  "java.compile.nullAnalysis.mode": "automatic"
+}
+

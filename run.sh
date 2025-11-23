@@ -137,7 +137,7 @@ download_k6
 log "Preparing Python venv and generating tokens..."
 
 TOOLS_DIR="${REPO_ROOT}/tools"
-VENV_DIR="${TOOLS_DIR}/.venv"
+VENV_DIR="${REPO_ROOT}/.venv"
 
 if [[ ! -d "${VENV_DIR}" ]]; then
   log "Creating venv at ${VENV_DIR}..."
@@ -148,7 +148,7 @@ source "${VENV_DIR}/bin/activate"
 
 log "Installing Python requirements..."
 pip install --upgrade pip >/dev/null
-pip install -r "${TOOLS_DIR}/requirements.txt" >/dev/null
+pip install -r "${REPO_ROOT}/requirements.txt" >/dev/null
 
 log "Running token generator (generate-all.py)..."
 python "${TOOLS_DIR}/generate-all.py" -n 100

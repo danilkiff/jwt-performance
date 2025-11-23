@@ -1,5 +1,8 @@
 .idea
 
+# vscode stuff
+bin
+
 # Gradle wrapper mess
 .gradle
 gradle
@@ -15,5 +18,7 @@ output
 # Python
 .venv
 
-# K6 binary
+# K6 binary and types
 k6/k6
+node_modules
+

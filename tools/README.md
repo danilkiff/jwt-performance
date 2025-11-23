@@ -15,7 +15,7 @@ k6 scripts then only read tokens and hit the gateway. Signing cost is outside th
 
 ## Requirements
 
-Use virtual env from here:
+Use virtual env **from repo root**:
 
 ```bash
 python -m venv .venv
@@ -31,20 +31,11 @@ secrets/
   rs256-private.pem
   es256-private.pem
   rsa-public.pem
-
-output/
-  (will be created)
-
-tools/
-  generate-all.py
-  requirements.txt
 ```
 
 Secrets are created according to [secrets/README.md](../secrets/README.md)
 
 ## Usage
-
-From repo root:
 
 ```bash
 python generate-all.py

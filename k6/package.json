@@ -1,0 +1,9 @@
+{
+  "name": "k6-scripts",
+  "version": "1.0.0",
+  "license": "ISC",
+  "dependencies": {
+    "@types/k6": "^1.4.0",
+    "typescript": "^5.9.3"
+  }
+}
