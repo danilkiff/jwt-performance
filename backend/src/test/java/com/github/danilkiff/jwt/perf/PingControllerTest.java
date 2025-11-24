@@ -2,26 +2,23 @@ package com.github.danilkiff.jwt.perf;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-@WebMvcTest(PingController.class)
+@WebFluxTest(PingController.class)
 class PingControllerTest {
 
     @Autowired
-    MockMvc mockMvc;
+    WebTestClient webTestClient;
 
     @Test
-    void ping_ShouldReturnPongResponse() throws Exception {
-        mockMvc.perform(get("/api/ping"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("pong"))
-                .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.timestamp").isNotEmpty())
-                .andExpect(jsonPath("$.timestamp").isString());
+    void ping_ShouldReturnPongResponse() {
+        webTestClient.get().uri("/api/ping")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("pong")
+                .jsonPath("$.timestamp").exists()
+                .jsonPath("$.timestamp").isNotEmpty();
     }
 }
