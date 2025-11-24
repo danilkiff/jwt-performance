@@ -267,27 +267,27 @@ fi
 # ------------------------------------------------------
 
 wait_for_health() {
-  local service="$1" port="$2" timeout="${3:-120}"
-  log "Waiting for ${service} to be healthy on port ${port} (timeout ${timeout}s)..."
+  local service="$1" url="$2" timeout="${3:-120}"
+  log "Waiting for ${service} to be healthy on ${url} (timeout ${timeout}s)..."
 
   local start now
   start="$(date +%s)"
 
   while true; do
-    if curl -fsS "http://localhost:${port}/actuator/health" >/dev/null 2>&1; then
+    if curl -fsS "${url}" >/dev/null 2>&1; then
       log "${service} is healthy"
       return 0
     fi
     now="$(date +%s)"
     if (( now - start > timeout )); then
-      fail "Timeout waiting for ${service} health on port ${port}"
+      fail "Timeout waiting for ${service} health on ${url}"
     fi
     sleep 3
   done
 }
 
-wait_for_health "backend" 9090 120
-wait_for_health "gateway" 8080 120
+wait_for_health "backend" "http://localhost:9090/api/ping" 120
+wait_for_health "gateway" "http://localhost:8080/actuator/health" 120
 
 # ------------------------------------------------------
 # 6. Run all k6 tests
