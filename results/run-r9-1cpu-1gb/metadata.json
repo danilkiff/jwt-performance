@@ -1,0 +1,8 @@
+{
+  "title":  "Ryzen9 limited by resource",
+  "cpu":    "AMD Ryzen 9 5950X @ 3.40GHz",
+  "ram":    "4 x 32 Gb DDR4 @ 3200 MT/s",
+  "ssd":    "1Tb",
+  "limits": "1 CPU, 1 Gb RAM"
+}
+
