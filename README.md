@@ -81,6 +81,16 @@ See the script source for the exact sequence of operations.
 
 See [analysis.ipynb](results/analysis.ipynb) for the full analysis.
 
+## Analysis environment
+
+Python dependencies (Jupyter + Seaborn) are managed with [uv](https://docs.astral.sh/uv/).
+Lockfile and Python version are checked in, so a single command reproduces the env:
+
+```bash
+uv sync
+uv run jupyter lab results/analysis.ipynb
+```
+
 ## License
 
 This work is licensed under **CC BY-SA-4.0**. See [`LICENSE.md`](LICENSE.md) for attribution requirements.
