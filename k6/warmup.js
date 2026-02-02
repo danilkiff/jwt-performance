@@ -10,6 +10,7 @@ export const options = {
         hs256: { executor: "per-vu-iterations", vus: 10, iterations: ITERATIONS, exec: "hs256" },
         rs256: { executor: "per-vu-iterations", vus: 10, iterations: ITERATIONS, exec: "rs256" },
         es256: { executor: "per-vu-iterations", vus: 10, iterations: ITERATIONS, exec: "es256" },
+        eddsa: { executor: "per-vu-iterations", vus: 10, iterations: ITERATIONS, exec: "eddsa" },
         jwe:   { executor: "per-vu-iterations", vus: 10, iterations: ITERATIONS, exec: "jwe"   },
         plain: { executor: "per-vu-iterations", vus: 10, iterations: ITERATIONS, exec: "plain" },
     }
@@ -18,6 +19,7 @@ export const options = {
 const hsTokens  = new SharedArray("hs256", () => open("../output/hs256-tokens.txt").trim().split("\n"));
 const rsTokens  = new SharedArray("rs256", () => open("../output/rs256-tokens.txt").trim().split("\n"));
 const esTokens  = new SharedArray("es256", () => open("../output/es256-tokens.txt").trim().split("\n"));
+const edTokens  = new SharedArray("eddsa", () => open("../output/eddsa-tokens.txt").trim().split("\n"));
 const jweTokens = new SharedArray("jwe",   () => open("../output/jwe-tokens.txt").trim().split("\n"));
 
 function pick(arr) {
@@ -34,6 +36,10 @@ export function rs256() {
 
 export function es256() {
     http.get(PING_CRYPT, {headers: {Authorization: `Bearer ${pick(esTokens)}`}});
+}
+
+export function eddsa() {
+    http.get(PING_CRYPT, {headers: {Authorization: `Bearer ${pick(edTokens)}`}});
 }
 
 export function jwe() {

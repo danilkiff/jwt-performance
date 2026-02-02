@@ -194,17 +194,19 @@ download_jwt_tools
 generate_tokens_with_jwt_tools() {
   log "Generating tokens via jwt-tools..."
 
-  local claims_bin hs_bin rs_bin es_bin jwe_bin
+  local claims_bin hs_bin rs_bin es_bin ed_bin jwe_bin
   claims_bin="${JWT_BIN_DIR}/jwt-claims"
   hs_bin="${JWT_BIN_DIR}/jwt-sign-hs256"
   rs_bin="${JWT_BIN_DIR}/jwt-sign-rs256"
   es_bin="${JWT_BIN_DIR}/jwt-sign-es256"
+  ed_bin="${JWT_BIN_DIR}/jwt-sign-eddsa"
   jwe_bin="${JWT_BIN_DIR}/jwe-encrypt-rsa-oaep-a256gcm"
 
   [[ -x "${claims_bin}" ]] || fail "jwt-claims not found or not executable"
   [[ -x "${hs_bin}" ]]     || fail "jwt-sign-hs256 not found or not executable"
   [[ -x "${rs_bin}" ]]     || fail "jwt-sign-rs256 not found or not executable"
   [[ -x "${es_bin}" ]]     || fail "jwt-sign-es256 not found or not executable"
+  [[ -x "${ed_bin}" ]]     || fail "jwt-sign-eddsa not found or not executable"
   [[ -x "${jwe_bin}" ]]    || fail "jwe-encrypt-rsa-oaep-a256gcm not found or not executable"
 
   local secrets output
@@ -215,6 +217,7 @@ generate_tokens_with_jwt_tools() {
   [[ -f "${secrets}/hs256-secret.txt" ]]    || fail "Missing ${secrets}/hs256-secret.txt"
   [[ -f "${secrets}/rs256-private.pem" ]]   || fail "Missing ${secrets}/rs256-private.pem"
   [[ -f "${secrets}/es256-private.pem" ]]   || fail "Missing ${secrets}/es256-private.pem"
+  [[ -f "${secrets}/eddsa-private.pem" ]]   || fail "Missing ${secrets}/eddsa-private.pem"
   [[ -f "${secrets}/rsa-public.pem" ]]      || fail "Missing ${secrets}/rsa-public.pem"
 
   # HS256
@@ -234,6 +237,12 @@ generate_tokens_with_jwt_tools() {
   "${claims_bin}" -count=${TOKENS_COUNT} | \
     "${es_bin}" --key-file "${secrets}/es256-private.pem" \
     > "${output}/es256-tokens.txt"
+
+  # EdDSA (Ed25519)
+  log "Generating EdDSA tokens..."
+  "${claims_bin}" -count=${TOKENS_COUNT} | \
+    "${ed_bin}" -key-file "${secrets}/eddsa-private.pem" \
+    > "${output}/eddsa-tokens.txt"
 
   # JWE
   log "Generating JWE tokens..."
@@ -307,7 +316,7 @@ else
   log "Skipping warmup (not found)"
 fi
 
-for script in load-plain.js load-hs256.js load-rs256.js load-es256.js load-jwe.js; do
+for script in load-plain.js load-hs256.js load-rs256.js load-es256.js load-eddsa.js load-jwe.js; do
   if [[ -f "${script}" ]]; then
     log "k6 run ${script}..."
 

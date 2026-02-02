@@ -7,6 +7,7 @@
 | HS256     | secret bytes | secret      | preloaded tokens |
 | RS256     | public key   | private key | preloaded tokens |
 | ES256     | public key   | private key | preloaded tokens |
+| EdDSA     | public key   | private key | preloaded tokens |
 | JWE       | private key  | public key  | preloaded tokens |
 
 ## Details 
@@ -73,6 +74,24 @@ Files:
 
 * `es256-public.pem` → `secrets-dev/` → Gateway (`ES256_PUBLIC_KEY`)
 * `es256-private.pem` → `secrets/` → Python generator
+
+## EdDSA (Ed25519)
+
+- Gateway verifies with **public Ed25519 key**.
+- Python generator (jwt-tools) signs with **private key**.
+- k6 uses only pre-generated tokens.
+
+### Generate Ed25519 keypair (PKCS#8 private + X.509 public)
+
+```bash
+openssl genpkey -algorithm ED25519 -out eddsa-private.pem
+openssl pkey -in eddsa-private.pem -pubout -out eddsa-public.pem
+```
+
+Files:
+
+* `eddsa-public.pem` → `secrets-dev/` → Gateway (`EDDSA_PUBLIC_KEY`)
+* `eddsa-private.pem` → `secrets/` → Python generator
 
 ## RSA for JWE (RSA-OAEP + AES-GCM)
 

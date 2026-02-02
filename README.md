@@ -54,7 +54,7 @@ flowchart
 
 Gateway classifies tokens on the fly:
 
-- **HS256 / RS256 / ES256** → `SignedJWT.parse` → `MACVerifier` / `RSASSAVerifier` / `ECDSAVerifier`
+- **HS256 / RS256 / ES256 / EdDSA** → `SignedJWT.parse` → `MACVerifier` / `RSASSAVerifier` / `ECDSAVerifier` / `Ed25519Verifier`
 - **JWE** → `JWEObject.parse` → `RSADecrypter` (RSA-OAEP + AES-GCM)
 
 Backend is intentionally trivial. The only measurable components are:
@@ -74,7 +74,7 @@ See the script source for the exact sequence of operations.
 
 ## What the bench reveals
 
-- throughput changes across HS256 → RS256 → ES256 → JWE;
+- throughput changes across HS256 → RS256 → ES256 → EdDSA → JWE;
 - latency behavior per algorithm;
 - pressure on the Netty/SCG event loop;
 - impact of raw cryptography with routing, without any application logic.
