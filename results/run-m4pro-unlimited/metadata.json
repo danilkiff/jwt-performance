@@ -1,0 +1,8 @@
+{
+  "title":  "M4 Pro no resource limits",
+  "cpu":    "m4 Pro",
+  "ram":    "24 Gb DDR5",
+  "ssd":    "1Tb",
+  "limits": "none"
+}
+
