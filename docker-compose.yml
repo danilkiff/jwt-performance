@@ -35,6 +35,7 @@ services:
       ES256_PUBLIC_KEY: file:/secrets/es256-public.pem
       EDDSA_PUBLIC_KEY: file:/secrets/eddsa-public.pem
       JWE_PRIVATE_KEY: file:/secrets/rsa-private.pem
+      CRYPTO_PROVIDER: ${CRYPTO_PROVIDER:-default}
       BACKEND_HOST: backend
     volumes:
       - ./secrets:/secrets

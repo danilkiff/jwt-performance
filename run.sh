@@ -259,17 +259,21 @@ generate_tokens_with_jwt_tools
 # 4. Start backend + gateway via docker compose
 # ------------------------------------------------------
 
-log "Starting backend + gateway (docker compose up -d)..."
+log "Starting backend (docker compose up -d backend)..."
 
 cd "${REPO_ROOT}"
 
-if docker compose version >/dev/null 2>&1; then
-  docker compose up -d backend gateway
-elif command -v docker-compose >/dev/null 2>&1; then
-  docker-compose up -d backend gateway
-else
-  fail "Neither 'docker compose' nor 'docker-compose' available"
-fi
+docker_compose() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    docker-compose "$@"
+  else
+    fail "Neither 'docker compose' nor 'docker-compose' available"
+  fi
+}
+
+docker_compose up -d --build backend
 
 # ------------------------------------------------------
 # 5. Wait for health (actuator/health)
@@ -296,38 +300,47 @@ wait_for_health() {
 }
 
 wait_for_health "backend" "http://localhost:9090/api/ping" 120
-wait_for_health "gateway" "http://localhost:8080/actuator/health" 120
 
 # ------------------------------------------------------
-# 6. Run all k6 tests
+# 6. Run k6 suite against every crypto provider mode
 # ------------------------------------------------------
-
-log "Running k6 load tests..."
 
 RESULTS_DIR="${REPO_ROOT}/results"
 mkdir -p "${RESULTS_DIR}"
 
-cd "${REPO_ROOT}/k6"
+run_k6_suite() {
+  local suffix="$1"
+  cd "${REPO_ROOT}/k6"
 
-# warmup (to avoid JVM cold start issues)
-if [[ -f warmup.js ]]; then
-  "${K6_BIN}" run warmup.js
-else
-  log "Skipping warmup (not found)"
-fi
+  if [[ -f warmup.js ]]; then
+    "${K6_BIN}" run warmup.js
+  else
+    log "Skipping warmup (not found)"
+  fi
 
-for script in load-plain.js load-hs256.js load-rs256.js load-es256.js load-eddsa.js load-jwe.js; do
-  if [[ -f "${script}" ]]; then
-    log "k6 run ${script}..."
-
+  for script in load-plain.js load-hs256.js load-rs256.js load-es256.js load-eddsa.js load-jwe.js; do
+    [[ -f "${script}" ]] || { log "Skipping ${script} (not found)"; continue; }
+    local alg out
     alg="${script#load-}"
     alg="${alg%.js}"
-    out="${RESULTS_DIR}/${alg}.json"
-
+    out="${RESULTS_DIR}/${alg}${suffix}.json"
+    log "k6 run ${script} -> ${out##*/}"
     "${K6_BIN}" run "${script}" --summary-export "${out}"
-  else
-    log "Skipping ${script} (not found)"
-  fi
+  done
+
+  cd "${REPO_ROOT}"
+}
+
+# space-separated "mode:suffix" pairs; suffix is empty for the baseline
+for entry in "default:" "bc:-bc" "accp:-accp"; do
+  mode="${entry%%:*}"
+  suffix="${entry#*:}"
+
+  log "=== Pass: CRYPTO_PROVIDER=${mode} (results suffix='${suffix}') ==="
+  CRYPTO_PROVIDER="${mode}" docker_compose up -d --build --no-deps --force-recreate gateway
+
+  wait_for_health "gateway" "http://localhost:8080/actuator/health" 120
+  run_k6_suite "${suffix}"
 done
 
 log "All k6 tests finished."

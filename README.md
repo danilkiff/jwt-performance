@@ -72,6 +72,22 @@ token generation, container startup, readiness checks, and sequential execution 
 
 See the script source for the exact sequence of operations.
 
+### JCE provider comparison
+
+Every k6 suite is re-run against three JCE provider configurations, controlled
+by `CRYPTO_PROVIDER` env on the gateway container. Output filenames carry the
+provider suffix so all three fit in the same `results/run-*` directory:
+
+| mode      | suffix   | behind the scenes                                               |
+|-----------|----------|-----------------------------------------------------------------|
+| `default` | *(none)* | stock JDK providers: SunRsaSign / SunEC / SunJCE + Tink Ed25519 |
+| `bc`      | `-bc`    | BouncyCastle inserted at priority 1 (pure Java)                 |
+| `accp`    | `-accp`  | Amazon Corretto Crypto Provider (AWS-LC native via JNI)         |
+
+Nimbus's `Ed25519Verifier` hard-codes Tink, so for `bc`/`accp` the gateway
+routes EdDSA through a tiny JCA-based verifier (`JcaEd25519Verifier`) to let
+the chosen provider actually service the scalar mult.
+
 ## What the bench reveals
 
 - throughput changes across HS256 → RS256 → ES256 → EdDSA → JWE;

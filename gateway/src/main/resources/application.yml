@@ -23,3 +23,6 @@ RS256_PUBLIC_KEY: classpath:/secrets-dev/rs256-public.pem
 ES256_PUBLIC_KEY: classpath:/secrets-dev/es256-public.pem
 EDDSA_PUBLIC_KEY: classpath:/secrets-dev/eddsa-public.pem
 JWE_PRIVATE_KEY: classpath:/secrets-dev/rsa-private.pem
+
+# default | conscrypt
+CRYPTO_PROVIDER: default
