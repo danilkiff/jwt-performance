@@ -3,7 +3,7 @@
 set -euo pipefail
 
 K6_VERSION="v1.4.1"
-JWT_VERSION="v0.0.2-alpha"
+JWT_VERSION="v0.0.3-alpha"
 JWT_REPO="danilkiff/jwt-token-generator"
 
 TOKENS_COUNT=10000
