@@ -16,9 +16,6 @@ import com.nimbusds.jwt.SignedJWT;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.openssl.PEMParser;
 import org.springframework.beans.factory.annotation.Value;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +26,9 @@ import reactor.core.publisher.Mono;
 
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 
 @Component
 public class JwtFilter {
@@ -36,6 +36,9 @@ public class JwtFilter {
     private final byte[] hs256Secret;
     private final RSAKey rsaPublicKey;
     private final ECKey ecPublicKey;
+    // Reused across requests: both Ed25519Verifier (Tink-backed) and JcaEd25519Verifier
+    // (fresh Signature per call) are thread-safe. HS/RS/ES Nimbus verifiers hold
+    // non-thread-safe JCA state and must be allocated per request below.
     private final JWSVerifier edVerifier;
     private final RSAKey jwePrivateKey;
 
@@ -55,13 +58,13 @@ public class JwtFilter {
     }
 
     private static JWSVerifier buildEdVerifier(String pem, String cryptoProvider) throws Exception {
-        // Nimbus Ed25519Verifier hard-codes Tink (pure Java). To measure native JCE providers
-        // (BC, ACCP) we go through JCA so Signature.getInstance("Ed25519") picks whichever
-        // provider is installed at position 1.
-        if (!"default".equalsIgnoreCase(cryptoProvider)) {
-            return new JcaEd25519Verifier(parseEd25519JcaKey(pem));
+        // Default mode keeps Nimbus's Tink-backed Ed25519Verifier; any other mode routes
+        // through JCA so Signature.getInstance("Ed25519") picks whichever provider was
+        // installed at position 1 (BC, ACCP, ...).
+        if ("default".equalsIgnoreCase(cryptoProvider)) {
+            return new Ed25519Verifier(parseEd25519OctetKeyPair(pem));
         }
-        return new Ed25519Verifier(parseEd25519OctetKeyPair(pem));
+        return new JcaEd25519Verifier(parseEd25519JcaKey(pem));
     }
 
     private static String read(Resource resource) {
@@ -118,12 +121,16 @@ public class JwtFilter {
         var jwt = SignedJWT.parse(token);
         var alg = jwt.getHeader().getAlgorithm().getName();
 
-        switch (alg) {
+        boolean verified = switch (alg) {
             case "HS256" -> jwt.verify(new MACVerifier(hs256Secret));
             case "RS256" -> jwt.verify(new RSASSAVerifier(rsaPublicKey));
             case "ES256" -> jwt.verify(new ECDSAVerifier(ecPublicKey));
             case "EdDSA" -> jwt.verify(edVerifier);
             default -> throw new IllegalArgumentException("Unsupported alg: " + alg);
+        };
+
+        if (!verified) {
+            throw new IllegalArgumentException("Invalid JWT signature");
         }
     }
 
