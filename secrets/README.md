@@ -1,5 +1,9 @@
 # Secrets and keys
 
+All key material in this repository (`secrets/`, `gateway/src/main/resources/secrets-dev/`)
+is disposable test data generated solely for this benchmark. None of it is used anywhere
+else; committing private keys here is intentional.
+
 ## TL;DR
 
 | Algorithm | Gateway uses | Python uses | k6 uses          |
